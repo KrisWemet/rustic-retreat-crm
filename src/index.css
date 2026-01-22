@@ -1,3 +1,109 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+  /* Typography */
+  --font-sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial, "Apple Color Emoji","Segoe UI Emoji";
+  --text-1: 32px;   /* page title */
+  --text-2: 18px;   /* section title */
+  --text-3: 14px;   /* primary UI */
+  --text-4: 12px;   /* meta */
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+
+  /* Colors */
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --surface-2: #f1f3f6; /* lanes / subtle panels */
+  --border: #e5e7eb;
+  --text: #111827;
+  --muted: #6b7280;
+  --muted-2: #9ca3af;
+  --link: #2563eb;
+
+  /* Accent (map to your brand later) */
+  --accent: #0ea5a8;      /* sidebar / primary */
+  --accent-2: #14b8a6;    /* hover / subtle */
+  --warn: #f59e0b;        /* holds */
+  --danger: #ef4444;      /* lost */
+  --success: #22c55e;     /* open/won-ish */
+  --purple: #8b5cf6;      /* won */
+  --yellow: #eab308;      /* captured */
+
+  /* Radius + shadow */
+  --r-sm: 10px;
+  --r-md: 14px;
+  --shadow-1: 0 1px 2px rgba(0,0,0,.06);
+  --shadow-2: 0 6px 18px rgba(0,0,0,.08);
+
+  /* Spacing */
+  --gap-1: 8px;
+  --gap-2: 12px;
+  --gap-3: 16px;
+  --gap-4: 24px;
+  --gap-5: 32px;
+
+  /* Sizes */
+  --sidebar-w: 240px;
+  --page-max: 1400px;
+}
+
+html, body {
+  font-family: var(--font-sans);
+  color: var(--text);
+  background: var(--bg);
+  font-size: var(--text-3);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a { color: var(--link); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+* { box-sizing: border-box; }
+
+/* Kill accidental outlines / debug borders */
+.leads-page * {
+  outline: none;
+}
+
+/* Card Utils */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-1);
+  border-radius: var(--r-md);
+}
+
+.card-hover:hover {
+  box-shadow: var(--shadow-2);
+  transform: translateY(-1px);
+  transition: all 0.2s ease;
+}
+
+/* Scrollbar styling for kanban */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--muted-2);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+}
+
+/* Common culprit: sortable/drag placeholder */
+.drag-placeholder,
+.sortable-ghost,
+.sortable-chosen {
+  outline: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}
