@@ -7,6 +7,7 @@ import InquiriesPage from './pages/admin/InquiriesPage'
 import PaymentsPage from './pages/admin/PaymentsPage'
 import ReportsPage from './pages/admin/ReportsPage'
 import LoginPage from './pages/LoginPage'
+import ResetPasswordPage from './pages/ResetPasswordPage'
 import RequireAuth from './components/RequireAuth'
 import InquiryBoard from './pages/admin/InquiryBoard'
 import BookingDetail from './pages/admin/BookingDetail'
@@ -20,6 +21,7 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<LoginPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/portal" element={<RequirePortal><ClientPortal /></RequirePortal>} />
         <Route
           path="/admin"

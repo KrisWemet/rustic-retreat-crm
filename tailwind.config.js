@@ -23,6 +23,13 @@ export default {
         danger: 'var(--danger)',
         success: 'var(--success)',
         purple: 'var(--purple)',
+        brand: {
+          cream: 'var(--brand-cream)',
+          text: 'var(--brand-text)',
+          charcoal: 'var(--brand-charcoal)',
+          accent: 'var(--brand-accent)',
+          terracotta: 'var(--brand-terracotta)',
+        },
         yellow: 'var(--yellow)',
       },
       fontFamily: {
