@@ -9,11 +9,21 @@ This repo uses the Supabase CLI for database migrations. Apply migrations locall
    - `SUPABASE_PROJECT_REF`: Your project ref (e.g., `abcdxyz12345`).
    - `SUPABASE_DB_PASSWORD`: Your project database password (Project Settings → Database → Connection string password).
 
-2. Commit SQL files to `supabase/migrations/*.sql`.
+   Keep these as **repository** secrets. The preview job needs them before approval, so moving them into the `production` environment would break it.
 
-3. Review the pending SQL and trigger the “Supabase Migrations” workflow manually. Pushing a branch does not apply production migrations.
+2. Create the approval gate (one time): **Settings → Environments → New environment**, name it `production`, tick **Required reviewers**, and add the person who approves database changes. Under **Deployment branches and tags**, choose **Selected branches** and allow only `master`. Until required reviewers are set, GitHub creates the environment on first use with no protection and the apply job runs without pausing.
 
-The workflow links to your project, previews pending migrations with `supabase db push --dry-run`, then runs `supabase db push`.
+3. Commit SQL files to `supabase/migrations/*.sql` and merge them to `master`.
+
+4. Trigger the “Supabase Migrations” workflow manually from `master`. Pushing a branch does not apply production migrations.
+
+The workflow runs three jobs in order:
+
+1. **Verify** refuses any branch except `master`, then runs the database checks below against a disposable PostgreSQL container. A failing check stops the run before production is touched.
+2. **Preview** links to the project and runs `supabase db push --dry-run`. The list of pending migrations appears in the run summary.
+3. **Apply** waits for a required reviewer to approve the `production` environment, then runs `supabase db push`. Read the preview summary before approving. Rejecting the approval leaves the database unchanged.
+
+Only one migration run can be active at a time; a second run waits for the first to finish.
 
 ## Local usage
 
