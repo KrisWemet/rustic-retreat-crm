@@ -1,0 +1,35 @@
+name: Frontend Checks
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      # Placeholder values so the Supabase client can be created in unit tests.
+      # No test contacts a real database; never put real keys here.
+      VITE_SUPABASE_URL: http://127.0.0.1:54321
+      VITE_SUPABASE_ANON_KEY: ci-placeholder-anon-key
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type check and build
+        run: npm run build
+
+      - name: Unit tests
+        run: npm test
