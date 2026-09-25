@@ -5,6 +5,20 @@ export type Inquiry = {
   full_name: string
   email: string
   phone: string | null
+  partner_name: string | null
+  preferred_contact: string | null
+  preferred_contact_email: string | null
+  estimated_guests: string | null
+  preferred_tour_dates: string | null
+  inquiry_type: string | null
+  landing_source: string | null
+  last_contacted_at: string | null
+  next_follow_up_at: string | null
+  tour_at: string | null
+  tour_outcome: string | null
+  lost_reason: string | null
+  status_changed_at: string | null
+  external_submission_id: string | null
   wedding_date_estimate: string | null
   source: string | null
   status: string | null
@@ -15,27 +29,27 @@ export type Inquiry = {
 type CreateInquiryInput = {
   full_name: string
   email: string
-  phone: string
+  phone?: string | null
+  partner_name?: string | null
+  preferred_contact?: string | null
+  estimated_guests?: string | null
+  preferred_tour_dates?: string | null
+  inquiry_type?: string | null
+  landing_source?: string | null
+  last_contacted_at?: string | null
+  next_follow_up_at?: string | null
+  tour_at?: string | null
+  tour_outcome?: string | null
+  lost_reason?: string | null
   wedding_date_estimate?: string | null
   source?: string | null
   notes?: string | null
 }
 
 export async function getInquiries(): Promise<Inquiry[]> {
-  try {
-    const { data, error } = await supabase
-      .from('inquiries')
-      .select('*')
-      .order('created_at', { ascending: false })
-
-    if (error) throw error
-    return data || []
-  } catch {
-    const { data } = await supabase.from('inquiries').select('*')
-    return (data || []).sort((a: any, b: any) =>
-      new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-    ) as Inquiry[]
-  }
+  const { data, error } = await supabase.from('inquiries').select('*').order('created_at', { ascending: false })
+  if (error) throw error
+  return (data || []) as Inquiry[]
 }
 
 export async function createInquiry(

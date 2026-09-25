@@ -38,7 +38,7 @@ type Props = {
 
 function StatusBadge({ status }: { status: string | null }) {
   const key = (status ?? 'new').toLowerCase()
-  const color =
+  const color: 'blue' | 'green' | 'amber' | 'purple' | 'gray' =
     key === 'booked'
       ? 'green'
       : key === 'viewing_scheduled'
@@ -48,7 +48,25 @@ function StatusBadge({ status }: { status: string | null }) {
       : key === 'new'
       ? 'blue'
       : 'gray'
-  return <Badge color={color as any}>{key.replace('_', ' ')}</Badge>
+  return <Badge color={color}>{key.replace('_', ' ')}</Badge>
+}
+
+function ActionsCell({ row, onView, onEdit, onDelete }: { row: RowType } & Pick<Props, 'onView' | 'onEdit' | 'onDelete'>) {
+  const [open, setOpen] = React.useState(false)
+  return (
+    <div className="relative text-right" onClick={(e) => e.stopPropagation()}>
+      <Dropdown>
+        <DropdownTrigger onToggle={() => setOpen((v) => !v)}>
+          <MoreVertical className="h-4 w-4" />
+        </DropdownTrigger>
+        <DropdownContent open={open} onClose={() => setOpen(false)}>
+          <DropdownItem onClick={() => onView(row)}>View Details</DropdownItem>
+          <DropdownItem onClick={() => onEdit(row)}>Edit</DropdownItem>
+          <DropdownItem tone="danger" onClick={() => onDelete(row)}>Delete</DropdownItem>
+        </DropdownContent>
+      </Dropdown>
+    </div>
+  )
 }
 
 export default function DataTable({ data, onView, onEdit, onDelete }: Props) {
@@ -100,25 +118,7 @@ export default function DataTable({ data, onView, onEdit, onDelete }: Props) {
       {
         id: 'actions',
         header: () => <div className="text-right">Actions</div>,
-        cell: ({ row }) => {
-          const [open, setOpen] = React.useState(false)
-          return (
-            <div className="relative text-right" onClick={(e) => e.stopPropagation()}>
-              <Dropdown>
-                <DropdownTrigger onToggle={() => setOpen((v) => !v)}>
-                  <MoreVertical className="h-4 w-4" />
-                </DropdownTrigger>
-                <DropdownContent open={open} onClose={() => setOpen(false)}>
-                  <DropdownItem onClick={() => onView(row.original)}>View Details</DropdownItem>
-                  <DropdownItem onClick={() => onEdit(row.original)}>Edit</DropdownItem>
-                  <DropdownItem tone="danger" onClick={() => onDelete(row.original)}>
-                    Delete
-                  </DropdownItem>
-                </DropdownContent>
-              </Dropdown>
-            </div>
-          )
-        },
+        cell: ({ row }) => <ActionsCell row={row.original} onView={onView} onEdit={onEdit} onDelete={onDelete} />,
       },
       {
         accessorKey: 'created_at',
@@ -134,7 +134,7 @@ export default function DataTable({ data, onView, onEdit, onDelete }: Props) {
         ),
       },
     ],
-    [],
+    [onView, onEdit, onDelete],
   )
 
   const [sorting, setSorting] = React.useState<SortingState>([])

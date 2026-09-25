@@ -18,7 +18,7 @@ describe('AdminLayout', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByText(/Rustic Retreat CRM/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/Planning Pod/i).length).toBeGreaterThan(0)
     expect(screen.getByText(/Dashboard Content/i)).toBeInTheDocument()
   })
 })

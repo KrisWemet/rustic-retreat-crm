@@ -10,14 +10,17 @@ import LoginPage from './pages/LoginPage'
 import RequireAuth from './components/RequireAuth'
 import InquiryBoard from './pages/admin/InquiryBoard'
 import BookingDetail from './pages/admin/BookingDetail'
+import OperationsSheet from './pages/admin/OperationsSheet'
+import RemindersPage from './pages/admin/RemindersPage'
 import ClientPortal from './pages/portal/ClientPortal'
+import RequirePortal from './components/RequirePortal'
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<LoginPage />} />
-        <Route path="/portal" element={<ClientPortal />} />
+        <Route path="/portal" element={<RequirePortal><ClientPortal /></RequirePortal>} />
         <Route
           path="/admin"
           element={
@@ -33,8 +36,10 @@ function App() {
           <Route path="inquiries/board" element={<InquiryBoard />} />
           <Route path="bookings" element={<BookingsPage />} />
           <Route path="bookings/:id" element={<BookingDetail />} />
+          <Route path="bookings/:id/operations-sheet" element={<OperationsSheet />} />
           <Route path="calendar" element={<CalendarPage />} />
           <Route path="payments" element={<PaymentsPage />} />
+          <Route path="reminders" element={<RemindersPage />} />
           <Route path="reports" element={<ReportsPage />} />
         </Route>
       </Routes>

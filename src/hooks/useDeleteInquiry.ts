@@ -8,6 +8,7 @@ export function useDeleteInquiry() {
     mutationFn: deleteInquiry,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['inquiries'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard-attention'] })
     },
   })
 }

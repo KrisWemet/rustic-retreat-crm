@@ -1,411 +1,92 @@
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from '@dnd-kit/core'
-import { useDraggable, useDroppable } from '@dnd-kit/core'
+import { DndContext, PointerSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { useMemo, useState } from 'react'
 import { useInquiries } from '@/hooks/useInquiries'
 import { useUpdateInquiry } from '@/hooks/useUpdateInquiry'
-import { useQueryClient } from '@tanstack/react-query'
 import type { Inquiry } from '@/lib/supabase/queries/inquiries'
-import {
-  Calendar as CalendarIcon,
-  MoreVertical,
-  Trash2,
-  CheckCircle2,
-  FolderOpen,
-  Lock,
-  Search,
-  Settings,
-  ChevronDown,
-  Star,
-  Filter as FilterIcon,
-  FileText,
-  List,
-  Grid,
-  HelpCircle,
-  Inbox,
-  Box,
-  CalendarCheck
-} from 'lucide-react'
-import { useDeleteInquiry } from '@/hooks/useDeleteInquiry'
-import { Dropdown, DropdownContent, DropdownItem, DropdownTrigger } from '@/components/ui/dropdown'
-import { useToast } from '@/components/ui/toast'
+import CreateInquiryModal from '@/components/CreateInquiryModal'
 import InquiryDetailModal from '@/components/InquiryDetailModal'
 import ConvertToBookingModal from '@/components/ConvertToBookingModal'
-import { differenceInDays } from 'date-fns'
+import { useToast } from '@/components/ui/toast-context'
 
-// --- Constants ---
-const COLUMNS = [
-  { id: 'new', title: 'New Lead', icon: FilterIcon, match: (s: string | null) => ['new', 'inquiry'].includes((s ?? 'new').toLowerCase()) },
-  { id: 'viewing_scheduled', title: 'First Contact', icon: CalendarIcon, match: (s: string | null) => (s ?? '').toLowerCase() === 'viewing_scheduled' },
-  { id: 'approved', title: 'Lead Qualified', icon: CheckCircle2, match: (s: string | null) => (s ?? '').toLowerCase() === 'approved' },
-  { id: 'tour_scheduled', title: 'Appointment/Call Scheduled', icon: CalendarIcon, match: (s: string | null) => (s ?? '').toLowerCase() === 'tour_scheduled' },
-  { id: 'contract_sent', title: 'Contract Sent', icon: FileText, match: (s: string | null) => (s ?? '').toLowerCase() === 'contract_sent' },
-]
+const stages = [
+  { id: 'new', title: 'New Lead', matches: ['new', 'inquiry'] },
+  { id: 'viewing_scheduled', title: 'First Contact', matches: ['viewing_scheduled'] },
+  { id: 'approved', title: 'Qualified', matches: ['approved'] },
+  { id: 'tour_scheduled', title: 'Tour Scheduled', matches: ['tour_scheduled'] },
+  { id: 'viewed', title: 'Tour Completed', matches: ['viewed'] },
+  { id: 'contract_sent', title: 'Contract Sent', matches: ['contract_sent'] },
+  { id: 'contract_signed', title: 'Contract Signed', matches: ['contract_signed'] },
+] as const
+const bookedStatuses = new Set(['booked', 'booking_confirmed', 'pre_event_checklist', 'event_week', 'post_event_inspection'])
+const isBooked = (inquiry: Inquiry) => bookedStatuses.has(inquiry.status ?? '')
+const daysSince = (value: string) => Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 86400000))
+const due = (value: string | null) => value && new Date(value).getTime() <= Date.now()
 
-// --- Sub-components ---
+type View = 'open' | 'follow_up' | 'lost' | 'booked' | 'all'
 
-function StatCard({
-  icon: Icon,
-  count,
-  label,
-  sublabel,
-  iconClass,
-}: {
-  icon: React.ElementType;
-  count: number;
-  label: string;
-  sublabel: string;
-  iconClass: string; 
-}) {
-  return (
-    <div className="flex items-start gap-3 rounded-md bg-surface p-4 shadow-1 border border-border">
-      <div className={`grid h-[34px] w-[34px] place-items-center rounded-full ${iconClass}`}>
-        <Icon className="h-4 w-4" />
-      </div>
-      <div>
-        <div className="text-[14px] font-semibold tracking-wide text-text">{label}</div>
-        <div className="mt-0.5 text-[18px] font-bold text-text">{count}</div>
-        <div className="mt-0.5 text-[12px] text-muted">{sublabel}</div>
-      </div>
-    </div>
-  )
+function LeadCard({ item, onOpen }: { item: Inquiry; onOpen: (item: Inquiry) => void }) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: item.id })
+  return <div ref={setNodeRef} {...attributes} {...listeners}
+    style={transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` } : undefined}
+    className={`rounded-lg border border-border bg-surface p-3 shadow-sm ${isDragging ? 'z-50 opacity-60' : ''}`}>
+    <button type="button" className="text-left font-semibold text-text hover:text-link" onClick={() => onOpen(item)}>{item.full_name}{item.partner_name ? ` & ${item.partner_name}` : ''}</button>
+    <p className="mt-1 text-sm text-muted">{item.wedding_date_estimate || 'Date undecided'}</p>
+    <p className="mt-2 text-xs text-muted">{daysSince(item.status_changed_at || item.created_at)} days in stage</p>
+    {item.next_follow_up_at && <p className={`mt-1 text-xs ${due(item.next_follow_up_at) ? 'font-semibold text-red-700' : 'text-muted'}`}>Follow up {new Date(item.next_follow_up_at).toLocaleDateString()}</p>}
+    <button type="button" className="mt-2 text-xs text-link underline" onClick={() => onOpen(item)}>View details</button>
+  </div>
 }
 
-function LeadCard({ item, onView, onDelete, onConvert }: { item: Inquiry; onView: (i: Inquiry) => void; onDelete: (i: Inquiry) => void; onConvert: (i: Inquiry) => void }) {
-  const status = (item.status ?? 'new').toLowerCase()
-  const createdDate = new Date(item.created_at)
-  const daysOld = differenceInDays(new Date(), createdDate)
-  
-  const statusColors: Record<string, string> = {
-    booked: 'bg-green-500',
-    tour_scheduled: 'bg-yellow-500',
-    viewed: 'bg-purple-500',
-    new: 'bg-blue-500',
-    lost: 'bg-red-500'
-  }
-  const dotColor = statusColors[status] || 'bg-gray-400'
-
-  return (
-    <div className="mb-3 rounded-md bg-surface p-3.5 shadow-1 border border-border group relative transition-all hover:shadow-2">
-      {/* Header */}
-      <div className="mb-2 flex items-start justify-between">
-        <h3 
-          className="cursor-pointer text-[14px] font-bold text-text hover:text-link"
-          onClick={() => onView(item)}
-        >
-          {item.full_name}
-        </h3>
-        <div className={`mt-1 h-2.5 w-2.5 rounded-full ${dotColor}`} />
-      </div>
-
-      <div className="text-[13px] text-text">
-        {item.wedding_date_estimate ? new Date(item.wedding_date_estimate).toLocaleDateString() : 'Date TBA'}
-      </div>
-
-      {/* Meta Indicators */}
-      <div className="mt-2 flex gap-2.5 text-[12px] text-muted">
-         <span>{daysOld} days old</span>
-         <span>0 days in step</span>
-      </div>
-
-      {/* Contacts */}
-      <div className="mt-2.5 flex items-center gap-2 text-[12px] text-muted">
-        <div className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 text-[10px] font-bold text-blue-700">
-          {item.full_name.charAt(0)}
-        </div>
-        <span className="truncate">{item.full_name}</span>
-      </div>
-
-      {/* Actions */}
-      <div className="mt-3 flex items-center justify-between">
-        <button onClick={() => onView(item)} className="text-[12px] text-link hover:underline">
-          View Pipeline History
-        </button>
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-           <button className="grid h-7 w-7 place-items-center rounded-full text-muted hover:bg-surface-2 hover:text-text"><Star className="h-3.5 w-3.5" /></button>
-           <button className="grid h-7 w-7 place-items-center rounded-full text-muted hover:bg-surface-2 hover:text-text"><FilterIcon className="h-3.5 w-3.5" /></button>
-           <CardMenu onView={() => onView(item)} onConvert={() => onConvert(item)} onDelete={() => onDelete(item)} />
-        </div>
-      </div>
-    </div>
-  )
+function StageColumn({ stage, items, onOpen }: { stage: typeof stages[number]; items: Inquiry[]; onOpen: (item: Inquiry) => void }) {
+  const { setNodeRef, isOver } = useDroppable({ id: stage.id })
+  return <section ref={setNodeRef} className={`w-64 shrink-0 rounded-lg bg-surface-2 p-3 ${isOver ? 'ring-2 ring-accent' : ''}`}>
+    <h2 className="mb-3 flex justify-between text-sm font-bold text-text"><span>{stage.title}</span><span>{items.length}</span></h2>
+    <div className="space-y-3">{items.map(item => <LeadCard key={item.id} item={item} onOpen={onOpen} />)}</div>
+  </section>
 }
-
-function DraggableCard(props: React.ComponentProps<typeof LeadCard>) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: props.item.id })
-  const style: React.CSSProperties | undefined = transform
-    ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
-    : undefined
-  return (
-    <div ref={setNodeRef} style={style} className={`touch-none ${isDragging ? 'opacity-50 z-50' : ''}`} {...listeners} {...attributes}>
-      <LeadCard {...props} />
-    </div>
-  )
-}
-
-function CardMenu({ onView, onConvert, onDelete }: { onView: () => void; onConvert: () => void; onDelete: () => void }) {
-  const [open, setOpen] = useState(false)
-  return (
-    <div className="relative" onClick={(e) => e.stopPropagation()}>
-      <Dropdown>
-        <DropdownTrigger onToggle={() => setOpen((v) => !v)}>
-           <div className="grid h-7 w-7 place-items-center rounded-full text-muted hover:bg-surface-2 hover:text-text cursor-pointer">
-              <MoreVertical className="h-3.5 w-3.5" />
-           </div>
-        </DropdownTrigger>
-        <DropdownContent open={open} onClose={() => setOpen(false)}>
-          <DropdownItem onClick={onView}>View Details</DropdownItem>
-          <DropdownItem onClick={onConvert}>Convert to Booking</DropdownItem>
-          <DropdownItem tone="danger" onClick={onDelete}>Delete</DropdownItem>
-        </DropdownContent>
-      </Dropdown>
-    </div>
-  )
-}
-
-// --- Main Component ---
 
 export default function InquiryBoard() {
-  const { data: inquiries = [] } = useInquiries()
-  const [selectedInquiry, setSelectedInquiry] = useState<Inquiry | null>(null)
-  const [isDetailOpen, setIsDetailOpen] = useState(false)
-  const [isConvertOpen, setIsConvertOpen] = useState(false)
-  const queryClient = useQueryClient()
-  const updateMutation = useUpdateInquiry()
-  const deleteMutation = useDeleteInquiry()
-  const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor))
+  const { data: inquiries = [], isLoading, error } = useInquiries()
+  const update = useUpdateInquiry()
   const { show } = useToast()
-
-  const counts = useMemo(() => {
-    const by = (p: (i: Inquiry) => boolean) => inquiries.filter(p).length
-    return {
-      captured: by((i) => ['new', 'inquiry'].includes((i.status ?? 'new').toLowerCase())),
-      lost: by((i) => (i.status ?? '').toLowerCase() === 'lost'),
-      won: by((i) => (i.status ?? '').toLowerCase() === 'booking_confirmed'),
-      open: by((i) => !['lost', 'booking_confirmed', 'new', 'inquiry'].includes((i.status ?? '').toLowerCase())),
-      holds: by((i) => (i.status ?? '').toLowerCase() === 'hold'),
-    }
-  }, [inquiries])
-
-  const groups = useMemo(() => {
-    return COLUMNS.map((col) => ({ 
-      id: col.id, 
-      title: col.title, 
-      icon: col.icon, 
-      items: inquiries.filter((i) => col.match(i.status ?? null)) 
-    }))
-  }, [inquiries])
-
-  const handleDragEnd = async (event: DragEndEvent) => {
-    const { active, over } = event
-    if (!over) return
-    const itemId = String(active.id)
-    const overId = String(over.id)
-    const targetColumn = COLUMNS.find((c) => c.id === overId)
-    if (!targetColumn) return
-    const item = inquiries.find((i) => i.id === itemId)
-    if (!item) return
-    const nextStatus = targetColumn.id
-    
-    // Optimistic Update
-    const prev = queryClient.getQueryData<Inquiry[]>(['inquiries'])
-    queryClient.setQueryData<Inquiry[]>(['inquiries'], (old) =>
-      (old ?? []).map((i) => (i.id === itemId ? { ...i, status: nextStatus } : i)),
-    )
-    try {
-      await updateMutation.mutateAsync({ id: itemId, data: { status: nextStatus as any } })
-      show(`Moved to ${targetColumn.title}`)
-    } catch (e) {
-      queryClient.setQueryData(['inquiries'], prev)
-      show('Failed to move lead')
-    }
+  const [search, setSearch] = useState('')
+  const [view, setView] = useState<View>('open')
+  const [selected, setSelected] = useState<Inquiry | null>(null)
+  const [detailOpen, setDetailOpen] = useState(false)
+  const [convertOpen, setConvertOpen] = useState(false)
+  const [createOpen, setCreateOpen] = useState(false)
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
+  const open = (item: Inquiry) => { setSelected(item); setDetailOpen(true) }
+  const counts = useMemo(() => ({
+    open: inquiries.filter(i => i.status !== 'lost' && !isBooked(i)).length,
+    follow_up: inquiries.filter(i => i.status !== 'lost' && !isBooked(i) && due(i.next_follow_up_at)).length,
+    lost: inquiries.filter(i => i.status === 'lost').length,
+    booked: inquiries.filter(isBooked).length,
+    all: inquiries.length,
+  }), [inquiries])
+  const filtered = useMemo(() => inquiries.filter(i => {
+    const matchesView = view === 'all' || (view === 'open' && i.status !== 'lost' && !isBooked(i)) ||
+      (view === 'follow_up' && i.status !== 'lost' && !isBooked(i) && due(i.next_follow_up_at)) ||
+      (view === 'lost' && i.status === 'lost') || (view === 'booked' && isBooked(i))
+    const text = [i.full_name, i.partner_name, i.email, i.phone, i.wedding_date_estimate].join(' ').toLowerCase()
+    return matchesView && text.includes(search.trim().toLowerCase())
+  }), [inquiries, search, view])
+  const handleDragEnd = async ({ active, over }: DragEndEvent) => {
+    const stage = stages.find(s => s.id === over?.id)
+    const item = inquiries.find(i => i.id === active.id)
+    if (!stage || !item || stage.matches.includes((item.status || 'new') as never)) return
+    try { await update.mutateAsync({ id: item.id, data: { status: stage.id } }); show(`Moved to ${stage.title}`) }
+    catch { show('Could not move lead') }
   }
-
-  return (
-    <div className="leads-page flex h-screen flex-col bg-bg">
-      {/* 1. Header Region */}
-      <div className="flex-none px-8 pt-6 pb-2">
-         {/* Breadcrumbs */}
-         <div className="mb-2 flex items-center gap-2 text-[12px] font-medium text-muted">
-            <span className="hover:text-link cursor-pointer">Home</span>
-            <span className="text-gray-300">/</span>
-            <span className="text-text">Leads</span>
-         </div>
-
-         {/* Title & Actions */}
-         <div className="mb-6 flex items-start justify-between">
-            <h1 className="text-page-title text-text">Leads</h1>
-            <div className="flex gap-3">
-               <button className="rounded-md bg-accent px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-accent-2 transition-colors">
-                 + Add Lead
-               </button>
-               <button className="flex items-center gap-2 rounded-md border border-border bg-surface px-4 py-2 text-sm font-medium text-text hover:bg-surface-2 transition-colors">
-                 Setup <Settings className="h-4 w-4 text-muted" />
-               </button>
-            </div>
-         </div>
-
-         {/* Search Row */}
-         <div className="flex justify-end mb-4">
-            <div className="flex items-center gap-3">
-               <div className="relative w-72">
-                  <input 
-                    type="text" 
-                    placeholder="Begin typing to filter current view..." 
-                    className="w-full rounded-md border border-border bg-surface py-2 pl-3 pr-8 text-sm placeholder:text-muted-2 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-                  />
-                  <Search className="absolute right-2.5 top-2.5 h-4 w-4 text-muted-2" />
-               </div>
-               <button className="flex items-center gap-1 rounded-md border border-border bg-surface px-3 py-2 text-sm font-medium text-text hover:bg-surface-2">
-                  Advanced Search <ChevronDown className="h-3 w-3" />
-               </button>
-            </div>
-         </div>
-
-         {/* 2. Stat Cards Row */}
-         <div className="grid grid-cols-5 gap-4 mb-4">
-            <StatCard icon={Inbox} count={counts.captured} label="Captured" sublabel="past 60 days" iconClass="bg-[#fef9c3] text-yellow-700" />
-            <StatCard icon={Box} count={counts.lost} label="Lost" sublabel="past 3 days" iconClass="bg-[#fee2e2] text-red-700" />
-            <StatCard icon={CalendarCheck} count={counts.won} label="Won" sublabel="past 60 days" iconClass="bg-[#ede9fe] text-purple-700" />
-            <StatCard icon={FolderOpen} count={counts.open} label="Open" sublabel="View" iconClass="bg-[#dcfce7] text-green-700" />
-            <StatCard icon={Lock} count={counts.holds} label="Holds" sublabel="View" iconClass="bg-[#ffedd5] text-orange-700" />
-         </div>
-      </div>
-
-      {/* 3. Main Content Split */}
-      <div className="flex flex-1 overflow-hidden px-8 pb-8 gap-6">
-         {/* Left Panel: Quick Views */}
-         <div className="w-[240px] flex-none rounded-md border border-border bg-surface shadow-1 flex flex-col overflow-hidden h-fit">
-            <div className="px-3.5 py-3 text-[14px] font-bold tracking-wide text-text border-b border-surface-2">
-               Quick Views
-            </div>
-            
-            <nav className="flex-1 py-1">
-               {[
-                 { id: 'all', label: 'All' },
-                 { id: 'open_holds', label: 'Open + Holds', active: true },
-                 { id: 'open', label: 'Open' },
-                 { id: 'holds', label: 'Holds' },
-                 { id: 'lost', label: 'Lost (Closed)' },
-                 { id: 'captured', label: 'Captured' },
-               ].map((view) => (
-                 <div key={view.id} className={`flex cursor-pointer items-center gap-2.5 px-3.5 py-2.5 text-[14px] ${view.active ? 'bg-[#eef2ff] border-l-4 border-link pl-2.5 font-medium text-link' : 'text-text hover:bg-bg border-l-4 border-transparent'}`}>
-                    {view.active && <div className="hidden" />}
-                    <span>{view.label}</span>
-                 </div>
-               ))}
-            </nav>
-
-            <div className="border-t border-surface-2 p-1">
-               <button className="flex w-full items-center gap-3 px-3.5 py-2.5 text-[14px] text-muted hover:bg-bg hover:text-danger">
-                  <Trash2 className="h-4 w-4" />
-                  <span>Trash</span>
-               </button>
-            </div>
-         </div>
-
-         {/* Right Panel: Kanban Board */}
-         <div className="flex flex-1 flex-col overflow-hidden">
-            {/* Toolbar */}
-            <div className="mb-3 flex items-center justify-between rounded-md border border-border bg-surface px-3 py-2.5 shadow-1">
-               <div className="flex items-center gap-3">
-                  <span className="text-[11px] font-bold text-muted uppercase tracking-wider">FILTERING BY:</span>
-                  <div className="flex gap-2">
-                     <span className="rounded-full bg-surface-2 border border-border px-2.5 py-1 text-[12px] text-text">Open + Holds</span>
-                     <span className="rounded-full bg-surface-2 border border-border px-2.5 py-1 text-[12px] text-text">All Event Dates</span>
-                     <span className="rounded-full bg-surface-2 border border-border px-2.5 py-1 text-[12px] text-text">All Captured</span>
-                  </div>
-               </div>
-               <div className="flex items-center gap-2">
-                  <button className="grid h-9 w-9 place-items-center rounded-full border border-border bg-surface hover:bg-bg"><FilterIcon className="h-4 w-4 text-muted" /></button>
-                  <button className="grid h-9 w-9 place-items-center rounded-full border border-border bg-surface hover:bg-bg"><Grid className="h-4 w-4 text-muted" /></button>
-                  <button className="grid h-9 w-9 place-items-center rounded-full border border-border bg-surface hover:bg-bg"><List className="h-4 w-4 text-muted" /></button>
-               </div>
-            </div>
-
-            {/* Columns */}
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragEnd={handleDragEnd}
-            >
-              <div className="grid flex-1 grid-cols-4 gap-4 overflow-x-auto pb-4">
-                {groups.slice(0, 4).map((col) => {
-                  const { setNodeRef, isOver } = useDroppable({ id: col.id })
-                  return (
-                    <div
-                      key={col.id}
-                      ref={setNodeRef}
-                      className={`flex min-w-[260px] flex-col rounded-md bg-surface-2 p-3 transition-colors ${isOver ? 'ring-2 ring-accent/20' : ''}`}
-                    >
-                      <div className="mb-2.5 flex items-center justify-between">
-                         <div className="flex items-center gap-2">
-                           <h3 className="text-[14px] font-bold text-text">{col.title}</h3>
-                         </div>
-                         <span className="text-[12px] font-medium text-muted">{col.items.length}</span>
-                      </div>
-                      
-                      <div className="flex-1 overflow-y-auto pr-1">
-                        {col.items.map((item) => (
-                          <DraggableCard
-                            key={item.id}
-                            item={item}
-                            onView={(i) => {
-                              setSelectedInquiry(i)
-                              setIsDetailOpen(true)
-                            }}
-                            onDelete={async (i) => {
-                              const confirmed = window.confirm('Delete this inquiry?')
-                              if (!confirmed) return
-                              try {
-                                await deleteMutation.mutateAsync(i.id)
-                                show('Inquiry deleted')
-                              } catch (e) {
-                                show('Failed to delete inquiry')
-                              }
-                            }}
-                            onConvert={(i) => {
-                              setSelectedInquiry(i)
-                              setIsConvertOpen(true)
-                            }}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </DndContext>
-         </div>
-      </div>
-      
-      {/* Help Button */}
-      <div className="fixed bottom-6 right-6 z-50">
-         <button className="grid h-12 w-12 place-items-center rounded-full bg-text text-white shadow-lg hover:bg-text/90 hover:scale-105 transition-all">
-            <HelpCircle className="h-6 w-6" />
-         </button>
-      </div>
-
-      <InquiryDetailModal
-        inquiry={selectedInquiry}
-        open={isDetailOpen}
-        onClose={() => {
-          setIsDetailOpen(false)
-          setSelectedInquiry(null)
-        }}
-        onConvertToBooking={() => {
-          setIsDetailOpen(false)
-          setIsConvertOpen(true)
-        }}
-      />
-      <ConvertToBookingModal inquiry={selectedInquiry} open={isConvertOpen} onClose={() => setIsConvertOpen(false)} />
-    </div>
-  )
+  return <div className="min-h-screen bg-bg p-6">
+    <div className="mb-5 flex flex-wrap items-center justify-between gap-4"><div><h1 className="text-page-title text-text">Leads</h1><p className="text-sm text-muted">Track inquiries through contract signing. Confirmed weddings live in Bookings.</p></div><button type="button" className="rounded-md bg-accent px-4 py-2 font-semibold text-white" onClick={() => setCreateOpen(true)}>+ Add Lead</button></div>
+    {error && <p role="alert" className="mb-4 text-red-700">Could not load inquiries: {error.message}</p>}
+    <div className="mb-5 flex flex-wrap gap-2">{(['open','follow_up','lost','booked','all'] as const).map(id => <button key={id} type="button" onClick={() => setView(id)} className={`rounded-md border px-3 py-2 text-sm ${view === id ? 'border-accent bg-accent text-white' : 'border-border bg-surface text-text'}`}>{({open:'Open',follow_up:'Follow-up due',lost:'Lost',booked:'Booked',all:'All'} as const)[id]} <strong>{counts[id]}</strong></button>)}</div>
+    <label className="mb-5 block max-w-sm text-sm text-text">Search leads<input type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Name, email, phone, or wedding date" className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2" /></label>
+    {isLoading ? <p>Loading leads…</p> : view === 'open' || view === 'follow_up' ? <DndContext sensors={sensors} onDragEnd={handleDragEnd}><div className="flex gap-4 overflow-x-auto pb-4">{stages.map(stage => <StageColumn key={stage.id} stage={stage} items={filtered.filter(i => stage.matches.includes((i.status || 'new') as never))} onOpen={open} />)}</div></DndContext> : <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{filtered.map(item => <LeadCard key={item.id} item={item} onOpen={open} />)}</div>}
+    {!isLoading && filtered.length === 0 && <p className="mt-4 text-sm text-muted">No leads in this view.</p>}
+    <CreateInquiryModal open={createOpen} onClose={() => setCreateOpen(false)} onSuccess={show} />
+    <InquiryDetailModal inquiry={selected} open={detailOpen} onClose={() => {setDetailOpen(false); setSelected(null)}} onConvertToBooking={item => {setSelected(item); setDetailOpen(false); setConvertOpen(true)}} />
+    <ConvertToBookingModal inquiry={selected} open={convertOpen} onClose={() => setConvertOpen(false)} />
+  </div>
 }

@@ -8,6 +8,7 @@ export function useCreateInquiry() {
     mutationFn: createInquiry,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['inquiries'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard-attention'] })
     },
   })
 }

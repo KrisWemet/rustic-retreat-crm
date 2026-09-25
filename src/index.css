@@ -107,3 +107,12 @@ a:hover { text-decoration: underline; }
   border: none !important;
   box-shadow: none !important;
 }
+
+@media print {
+  @page { size: letter; margin: 12mm; }
+  body { background: white; color: black; }
+  aside, header, nav { display: none !important; }
+  [class*="md:pl-"] { padding-left: 0 !important; }
+  main { margin: 0 !important; padding: 0 !important; }
+  a { color: black; text-decoration: none; }
+}

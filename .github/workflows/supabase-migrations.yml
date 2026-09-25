@@ -2,9 +2,6 @@ name: Supabase Migrations
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - 'supabase/migrations/**.sql'
 
 jobs:
   push-migrations:
@@ -31,5 +28,5 @@ jobs:
 
       - name: Push migrations
         run: |
+          supabase db push --dry-run
           supabase db push
-

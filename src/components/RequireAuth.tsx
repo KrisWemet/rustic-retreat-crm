@@ -7,20 +7,24 @@ type Props = {
 }
 
 export default function RequireAuth({ children }: Props) {
-  const [status, setStatus] = useState<'checking' | 'authed' | 'guest'>(
+  const [status, setStatus] = useState<'checking' | 'authed' | 'guest' | 'denied' | 'error'>(
     'checking',
   )
 
   useEffect(() => {
     let mounted = true
+    let checkNumber = 0
 
     const check = async () => {
+      const currentCheck = ++checkNumber
       const { data, error } = await supabase.auth.getUser()
-      if (!mounted) return
+      if (!mounted || currentCheck !== checkNumber) return
       if (error || !data.user) {
         setStatus('guest')
       } else {
-        setStatus('authed')
+        const role = await supabase.rpc('is_admin')
+        if (!mounted || currentCheck !== checkNumber) return
+        setStatus(role.error ? 'error' : role.data === true ? 'authed' : 'denied')
       }
     }
 
@@ -52,6 +56,8 @@ export default function RequireAuth({ children }: Props) {
     return <Navigate to="/" replace />
   }
 
+  if (status === 'denied') return <p role="alert" className="p-8 text-red-700">This account does not have CRM admin access.</p>
+  if (status === 'error') return <p role="alert" className="p-8 text-red-700">Could not verify CRM admin access. Please refresh.</p>
+
   return <>{children}</>
 }
-

@@ -3,14 +3,15 @@ import { BrowserRouter } from 'react-router-dom'
 import LoginPage from '@/pages/LoginPage'
 
 describe('LoginPage', () => {
-  it('renders the admin login form', () => {
+  it('offers sign-in and separate portal-account registration', () => {
     render(
       <BrowserRouter>
         <LoginPage />
       </BrowserRouter>,
     )
 
-    expect(screen.getByText(/Admin Login/i)).toBeInTheDocument()
+    expect(screen.getByText(/Rustic Retreat sign in/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /sign in/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Create a wedding portal account/i })).toBeInTheDocument()
   })
 })

@@ -13,6 +13,10 @@ export function useUpdateInquiry() {
     mutationFn: ({ id, data }: UpdateInquiryArgs) => updateInquiry(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['inquiries'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard-attention'] })
+      queryClient.invalidateQueries({ queryKey: ['reminders'] })
+      queryClient.invalidateQueries({ queryKey: ['financial-overview'] })
+      queryClient.invalidateQueries({ queryKey: ['operations-sheet'] })
     },
   })
 }

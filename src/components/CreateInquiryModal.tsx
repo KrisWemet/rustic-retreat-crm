@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { useCreateInquiry } from '@/hooks/useCreateInquiry'
@@ -7,7 +7,12 @@ import { useCreateInquiry } from '@/hooks/useCreateInquiry'
 const inquirySchema = z.object({
   full_name: z.string().min(1, 'Full name is required'),
   email: z.string().email('Enter a valid email'),
-  phone: z.string().min(1, 'Phone is required'),
+  phone: z.string().optional(),
+  partner_name: z.string().optional(),
+  preferred_contact: z.string().optional(),
+  estimated_guests: z.string().optional(),
+  preferred_tour_dates: z.string().optional(),
+  next_follow_up_at: z.string().optional(),
   wedding_date_estimate: z.string().optional().or(z.literal('')),
   source: z.string().min(1, 'Source is required'),
   notes: z.string().optional().or(z.literal('')),
@@ -27,6 +32,7 @@ const CreateInquiryModal = ({
   onSuccess,
 }: CreateInquiryModalProps) => {
   const [formError, setFormError] = useState<string | null>(null)
+  const close = useCallback(() => { setFormError(null); onClose() }, [onClose])
   const { mutateAsync, isPending } = useCreateInquiry()
   const {
     register,
@@ -39,6 +45,11 @@ const CreateInquiryModal = ({
       full_name: '',
       email: '',
       phone: '',
+      partner_name: '',
+      preferred_contact: 'email',
+      estimated_guests: '',
+      preferred_tour_dates: '',
+      next_follow_up_at: '',
       wedding_date_estimate: '',
       source: 'Website',
       notes: '',
@@ -48,13 +59,12 @@ const CreateInquiryModal = ({
   useEffect(() => {
     if (!open) {
       reset()
-      setFormError(null)
       return
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        onClose()
+        close()
       }
     }
 
@@ -63,7 +73,7 @@ const CreateInquiryModal = ({
     return () => {
       window.removeEventListener('keydown', handleKeyDown)
     }
-  }, [onClose, open, reset])
+  }, [close, open, reset])
 
   if (!open) {
     return null
@@ -76,12 +86,17 @@ const CreateInquiryModal = ({
       await mutateAsync({
         full_name: values.full_name,
         email: values.email,
-        phone: values.phone,
+        phone: values.phone || null,
+        partner_name: values.partner_name || null,
+        preferred_contact: values.preferred_contact || null,
+        estimated_guests: values.estimated_guests || null,
+        preferred_tour_dates: values.preferred_tour_dates || null,
+        next_follow_up_at: values.next_follow_up_at ? new Date(values.next_follow_up_at).toISOString() : null,
         wedding_date_estimate: values.wedding_date_estimate || null,
         source: values.source,
         notes: values.notes || null,
       })
-      onClose()
+      close()
       onSuccess?.('Inquiry created successfully.')
     } catch (error) {
       if (error instanceof Error) {
@@ -95,7 +110,7 @@ const CreateInquiryModal = ({
   return (
     <div
       className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/50 px-4"
-      onClick={onClose}
+      onClick={close}
     >
       <div
         className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl"
@@ -112,14 +127,14 @@ const CreateInquiryModal = ({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={close}
             className="rounded-md px-2 py-1 text-sm font-semibold text-slate-500 hover:text-slate-700"
           >
             Close
           </button>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="mt-6 max-h-[70vh] space-y-4 overflow-y-auto">
           <div>
             <label className="text-sm font-medium text-slate-700">
               Full Name
@@ -135,6 +150,8 @@ const CreateInquiryModal = ({
               </p>
             ) : null}
           </div>
+
+          <div><label className="text-sm font-medium text-slate-700">Partner's name</label><input {...register('partner_name')} className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2" /></div>
 
           <div>
             <label className="text-sm font-medium text-slate-700">Email</label>
@@ -164,6 +181,10 @@ const CreateInquiryModal = ({
               </p>
             ) : null}
           </div>
+          <div><label className="text-sm font-medium text-slate-700">Preferred contact</label><select {...register('preferred_contact')} className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2"><option value="email">Email</option><option value="text">Text</option><option value="phone">Phone call</option></select></div>
+          <div><label className="text-sm font-medium text-slate-700">Estimated guests</label><input {...register('estimated_guests')} placeholder="50–60 or not sure yet" className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2" /></div>
+          <div><label className="text-sm font-medium text-slate-700">Preferred tour dates</label><input {...register('preferred_tour_dates')} className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2" /></div>
+          <div><label className="text-sm font-medium text-slate-700">Next follow-up</label><input type="datetime-local" {...register('next_follow_up_at')} className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2" /></div>
 
           <div>
             <label className="text-sm font-medium text-slate-700">
@@ -214,7 +235,7 @@ const CreateInquiryModal = ({
           <div className="flex items-center justify-end gap-3 pt-2">
             <button
               type="button"
-              onClick={onClose}
+              onClick={close}
               className="rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:border-slate-400"
             >
               Cancel

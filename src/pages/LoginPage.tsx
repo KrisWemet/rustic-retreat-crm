@@ -1,6 +1,7 @@
 import { type FormEvent, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { signIn } from '@/lib/supabase/auth'
+import { registerPortalAccount, signIn } from '@/lib/supabase/auth'
+import { getMyRole } from '@/lib/supabase/queries/portal'
 
 const LoginPage = () => {
   const navigate = useNavigate()
@@ -8,11 +9,22 @@ const LoginPage = () => {
   const [password, setPassword] = useState('')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [registering, setRegistering] = useState(false)
+  const [notice, setNotice] = useState('')
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setErrorMessage(null)
+    setNotice('')
     setIsSubmitting(true)
+
+    if (registering) {
+      const { error } = await registerPortalAccount(email, password)
+      setIsSubmitting(false)
+      if (error) setErrorMessage(error.message)
+      else setNotice('Account created. Check your email to verify it, then sign in. The venue team can link your account to your wedding.')
+      return
+    }
 
     const { data, error } = await signIn(email, password)
 
@@ -24,7 +36,10 @@ const LoginPage = () => {
     }
 
     if (data?.user) {
-      navigate('/admin/dashboard')
+      try {
+        const role = await getMyRole()
+        navigate(role === 'admin' ? '/admin/dashboard' : '/portal')
+      } catch { setErrorMessage('Signed in, but could not verify your CRM role. Please try again.') }
       return
     }
 
@@ -34,9 +49,9 @@ const LoginPage = () => {
   return (
     <div className="min-h-screen bg-slate-100 flex items-center justify-center px-4">
       <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-lg">
-        <h1 className="text-2xl font-semibold text-slate-900">Admin Login</h1>
+        <h1 className="text-2xl font-semibold text-slate-900">{registering ? 'Create portal account' : 'Rustic Retreat sign in'}</h1>
         <p className="mt-2 text-sm text-slate-500">
-          Sign in to access the Rustic Retreat CRM.
+          {registering ? 'Use your own email address. Each partner can have a separate account.' : 'Sign in to your wedding portal or the venue CRM.'}
         </p>
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
@@ -83,14 +98,16 @@ const LoginPage = () => {
               {errorMessage}
             </div>
           ) : null}
+          {notice && <p role="status" className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-800">{notice}</p>}
 
           <button
             type="submit"
             disabled={isSubmitting}
             className="flex w-full items-center justify-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
           >
-            {isSubmitting ? 'Signing in...' : 'Sign In'}
+            {isSubmitting ? 'Please wait…' : registering ? 'Create account' : 'Sign in'}
           </button>
+          <button type="button" onClick={() => { setRegistering(!registering); setErrorMessage(null); setNotice('') }} className="w-full text-sm text-blue-700 underline">{registering ? 'Already have an account? Sign in' : 'Create a wedding portal account'}</button>
         </form>
       </div>
     </div>

@@ -1,4 +1,24 @@
-# React + TypeScript + Vite
+# Rustic Retreat CRM
+
+Current booking packages, prices, limits, and open pricing decisions are documented in [Current package rules](Documentation/Current_package_rules.md). The older PRD is historical and should not be used to quote new weddings.
+
+Calendar reservations, database protections, and migration checks are documented in [Calendar rules](Documentation/Calendar_rules.md).
+
+Lead stages, follow-ups, and website intake deployment are documented in [Inquiry workflow](Documentation/Inquiry_workflow.md).
+
+The confirmed-wedding record and dashboard are documented in [Wedding workspace](Documentation/Wedding_workspace.md).
+
+The camping register, property checks, inspection photos, and printable weekend sheet are documented in [Operations workflow](Documentation/Operations_workflow.md).
+
+Account roles, partner access, and staff permissions are documented in [Permissions](Documentation/Permissions.md). Contract totals, receipts, and preference-based reminders are documented in [Financial reminders](Documentation/Financial_reminders.md).
+
+## Development
+
+Cross-feature test results and remaining live release checks are documented in [Steps 1–7 integration verification](Documentation/Integration_verification.md).
+
+Run `npm ci`, then `npm run build` and `npm test`. Tests that import the Supabase client need local `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` values; dummy local values work for the current unit tests.
+
+## Original Vite template notes
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 

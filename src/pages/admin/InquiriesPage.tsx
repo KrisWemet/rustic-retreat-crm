@@ -23,7 +23,7 @@ const InquiriesPage = () => {
   const statusTabs = [
     { id: 'all', label: 'All' },
     { id: 'new', label: 'New' },
-    { id: 'viewing_scheduled', label: 'Viewing Scheduled' },
+    { id: 'open', label: 'Open' },
     { id: 'booked', label: 'Booked' },
     { id: 'lost', label: 'Lost' },
   ]
@@ -31,12 +31,16 @@ const InquiriesPage = () => {
   const filteredInquiries = useMemo(() => {
     const list = inquiries ?? []
     return list.filter((inq) => {
-      const matchesStatus =
-        filterStatus === 'all' || (inq.status ?? 'new') === filterStatus
+      const booked = ['booked', 'booking_confirmed', 'pre_event_checklist', 'event_week', 'post_event_inspection'].includes(inq.status ?? '')
+      const matchesStatus = filterStatus === 'all' ||
+        (filterStatus === 'new' && ['new', 'inquiry'].includes(inq.status ?? 'new')) ||
+        (filterStatus === 'open' && inq.status !== 'lost' && !booked) ||
+        (filterStatus === 'booked' && booked) ||
+        (filterStatus === 'lost' && inq.status === 'lost')
       const needle = search.trim().toLowerCase()
       const matchesSearch = !needle
         ? true
-        : [inq.full_name, inq.email, inq.phone]
+        : [inq.full_name, inq.partner_name, inq.email, inq.phone, inq.wedding_date_estimate]
             .filter(Boolean)
             .some((v) => String(v).toLowerCase().includes(needle))
       return matchesStatus && matchesSearch
@@ -220,7 +224,7 @@ const InquiriesPage = () => {
           try {
             await deleteMutation.mutateAsync(row.id)
             setSuccessMessage('Inquiry deleted')
-          } catch (e) {
+          } catch {
             setSuccessMessage('Failed to delete inquiry')
           }
         }}
@@ -237,7 +241,8 @@ const InquiriesPage = () => {
           setIsDetailOpen(false)
           setSelectedInquiry(null)
         }}
-        onConvertToBooking={() => {
+        onConvertToBooking={(inquiry) => {
+          setSelectedInquiry(inquiry)
           setIsDetailOpen(false)
           setIsConvertOpen(true)
         }}
