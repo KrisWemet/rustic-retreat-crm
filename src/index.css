@@ -1,6 +1,22 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@config "../tailwind.config.js";
+
+/* Tailwind v3 defaults the app's classes were written against: v4 makes
+   plain `border` use currentColor and buttons use the default cursor. */
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentColor);
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+}
 
 :root {
   /* Typography */
@@ -23,9 +39,17 @@
   --muted-2: #9ca3af;
   --link: #2563eb;
 
-  /* Accent (map to your brand later) */
-  --accent: #0ea5a8;      /* sidebar / primary */
-  --accent-2: #14b8a6;    /* hover / subtle */
+  /* Rustic Retreat brand, from the wedding website's palette. Terracotta is
+     deepened from the site's #ce8e7e so white button text meets 4.5:1. */
+  --brand-cream: hsl(40 30% 96%);
+  --brand-text: hsl(25 20% 25%);
+  --brand-charcoal: hsl(25 25% 20%);
+  --brand-accent: hsl(35 22% 80%);
+  --brand-terracotta: hsl(12 48% 46%);
+
+  /* Accent: primary buttons, selected tabs, drop targets */
+  --accent: var(--brand-terracotta);
+  --accent-2: hsl(12 45% 56%);
   --warn: #f59e0b;        /* holds */
   --danger: #ef4444;      /* lost */
   --success: #22c55e;     /* open/won-ish */
@@ -50,37 +74,49 @@
   --page-max: 1400px;
 }
 
-html, body {
-  font-family: var(--font-sans);
-  color: var(--text);
-  background: var(--bg);
-  font-size: var(--text-3);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+/* Element defaults and shared classes sit in layers so Tailwind utilities
+   still override them (in v4, unlayered CSS beats every layer). */
+@layer base {
+  html, body {
+    font-family: var(--font-sans);
+    color: var(--text);
+    background: var(--bg);
+    font-size: var(--text-3);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  a { color: var(--link); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  * { box-sizing: border-box; }
 }
 
-a { color: var(--link); text-decoration: none; }
-a:hover { text-decoration: underline; }
+@layer components {
+  .heading-serif {
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
 
-* { box-sizing: border-box; }
+  /* Kill accidental outlines / debug borders */
+  .leads-page * {
+    outline: none;
+  }
 
-/* Kill accidental outlines / debug borders */
-.leads-page * {
-  outline: none;
-}
+  /* Card Utils */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-1);
+    border-radius: var(--r-md);
+  }
 
-/* Card Utils */
-.card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow-1);
-  border-radius: var(--r-md);
-}
-
-.card-hover:hover {
-  box-shadow: var(--shadow-2);
-  transform: translateY(-1px);
-  transition: all 0.2s ease;
+  .card-hover:hover {
+    box-shadow: var(--shadow-2);
+    transform: translateY(-1px);
+    transition: all 0.2s ease;
+  }
 }
 
 /* Scrollbar styling for kanban */

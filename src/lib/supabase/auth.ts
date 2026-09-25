@@ -26,3 +26,15 @@ export async function getCurrentUser() {
 
   return data.user;
 }
+
+// Sends Supabase's recovery email. The link signs the user in on
+// /reset-password, which must be listed under Supabase Auth → URL Configuration.
+export async function requestPasswordReset(email: string) {
+  return supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${window.location.origin}/reset-password`,
+  })
+}
+
+export async function updatePassword(password: string) {
+  return supabase.auth.updateUser({ password })
+}

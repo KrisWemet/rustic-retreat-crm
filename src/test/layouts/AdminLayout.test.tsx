@@ -18,7 +18,8 @@ describe('AdminLayout', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getAllByText(/Planning Pod/i).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/Rustic Retreat/i).length).toBeGreaterThan(0)
+    expect(screen.queryByText(/Planning Pod|Shannon/i)).not.toBeInTheDocument()
     expect(screen.getByText(/Dashboard Content/i)).toBeInTheDocument()
   })
 })

@@ -1,16 +1,34 @@
 import { type FormEvent, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { registerPortalAccount, signIn } from '@/lib/supabase/auth'
+import { useLocation, useNavigate } from 'react-router-dom'
+import AuthLayout, { authField, authLabel, authLink, authPrimary } from '@/components/AuthLayout'
+import { registerPortalAccount, requestPasswordReset, signIn } from '@/lib/supabase/auth'
 import { getMyRole } from '@/lib/supabase/queries/portal'
+
+type Mode = 'signin' | 'register' | 'forgot'
+
+const copy: Record<Mode, { title: string; subtitle: string; submit: string }> = {
+  signin: { title: 'Welcome back', subtitle: 'Sign in to the venue CRM or your wedding portal.', submit: 'Sign in' },
+  register: { title: 'Create your account', subtitle: 'Use your own email address. Each partner can have a separate account.', submit: 'Create account' },
+  forgot: { title: 'Reset your password', subtitle: 'Enter your account email and we will send you a link to choose a new password.', submit: 'Send reset link' },
+}
 
 const LoginPage = () => {
   const navigate = useNavigate()
+  const location = useLocation()
+  // An expired reset link sends people back here straight into the reset form.
+  const [mode, setMode] = useState<Mode>(() => ((location.state as { mode?: Mode } | null)?.mode === 'forgot' ? 'forgot' : 'signin'))
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [registering, setRegistering] = useState(false)
   const [notice, setNotice] = useState('')
+
+  const switchMode = (next: Mode) => {
+    setMode(next)
+    setErrorMessage(null)
+    setNotice('')
+    setPassword('')
+  }
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -18,7 +36,16 @@ const LoginPage = () => {
     setNotice('')
     setIsSubmitting(true)
 
-    if (registering) {
+    if (mode === 'forgot') {
+      const { error } = await requestPasswordReset(email)
+      setIsSubmitting(false)
+      // Same message whether or not the address has an account.
+      if (error) setErrorMessage(error.message)
+      else setNotice('If that email has an account, a reset link is on its way. Check your inbox and spam folder.')
+      return
+    }
+
+    if (mode === 'register') {
       const { error } = await registerPortalAccount(email, password)
       setIsSubmitting(false)
       if (error) setErrorMessage(error.message)
@@ -46,71 +73,63 @@ const LoginPage = () => {
     setErrorMessage('Unable to sign in. Please try again.')
   }
 
+  const { title, subtitle, submit } = copy[mode]
+
   return (
-    <div className="min-h-screen bg-slate-100 flex items-center justify-center px-4">
-      <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-lg">
-        <h1 className="text-2xl font-semibold text-slate-900">{registering ? 'Create portal account' : 'Rustic Retreat sign in'}</h1>
-        <p className="mt-2 text-sm text-slate-500">
-          {registering ? 'Use your own email address. Each partner can have a separate account.' : 'Sign in to your wedding portal or the venue CRM.'}
-        </p>
+    <AuthLayout title={title} subtitle={subtitle}>
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <div className="space-y-1.5">
+          <label htmlFor="email" className={authLabel}>Email</label>
+          <input
+            id="email"
+            type="email"
+            name="email"
+            autoComplete="email"
+            required
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            className={authField}
+          />
+        </div>
 
-        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-          <div className="space-y-2 text-left">
-            <label
-              htmlFor="email"
-              className="text-sm font-medium text-slate-700"
-            >
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              name="email"
-              autoComplete="email"
-              required
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
-            />
-          </div>
-
-          <div className="space-y-2 text-left">
-            <label
-              htmlFor="password"
-              className="text-sm font-medium text-slate-700"
-            >
-              Password
-            </label>
+        {mode !== 'forgot' && (
+          <div className="space-y-1.5">
+            <div className="flex items-baseline justify-between">
+              <label htmlFor="password" className={authLabel}>Password</label>
+              {mode === 'signin' && (
+                <button type="button" onClick={() => switchMode('forgot')} className={authLink}>Forgot password?</button>
+              )}
+            </div>
             <input
               id="password"
               type="password"
               name="password"
-              autoComplete="current-password"
+              autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
               required
+              minLength={mode === 'register' ? 8 : undefined}
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+              className={authField}
             />
           </div>
+        )}
 
-          {errorMessage ? (
-            <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
-              {errorMessage}
-            </div>
-          ) : null}
-          {notice && <p role="status" className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-800">{notice}</p>}
+        {errorMessage && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{errorMessage}</p>}
+        {notice && <p role="status" className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">{notice}</p>}
 
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="flex w-full items-center justify-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
-          >
-            {isSubmitting ? 'Please wait…' : registering ? 'Create account' : 'Sign in'}
-          </button>
-          <button type="button" onClick={() => { setRegistering(!registering); setErrorMessage(null); setNotice('') }} className="w-full text-sm text-blue-700 underline">{registering ? 'Already have an account? Sign in' : 'Create a wedding portal account'}</button>
-        </form>
+        <button type="submit" disabled={isSubmitting} className={authPrimary}>
+          {isSubmitting ? 'Please wait…' : submit}
+        </button>
+      </form>
+
+      <div className="mt-8 border-t border-[var(--brand-accent)]/70 pt-6 text-center text-sm text-[var(--brand-text)]/70">
+        {mode === 'signin' ? (
+          <p>Getting married here? <button type="button" onClick={() => switchMode('register')} className={authLink}>Create a wedding portal account</button></p>
+        ) : (
+          <button type="button" onClick={() => switchMode('signin')} className={authLink}>Back to sign in</button>
+        )}
       </div>
-    </div>
+    </AuthLayout>
   )
 }
 
