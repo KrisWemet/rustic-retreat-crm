@@ -40,7 +40,7 @@ Both repos have their own PR numbers, and both have used the branch name `claude
 - **Hosting:** Railway project **"refreshing-analysis"**. Railway deploys from the branch **`claude/wedding-crm-esign-integration-coau0z`**. The repo's default branch is `claude/wedding-venue-crm-23ycf5`.
 - **Database:** a SQLite file on a Railway volume mounted at `/data`, with `DB_PATH` pointing to it. **It holds real couples.**
 - **Access:** `CRM_PUBLIC=1` means there is no extra access gate in front of the app. The owner chose to keep it that way, because the admin CRM already requires the admin login (email set by `ADMIN_EMAIL_LOGIN`, plus a password). The gate would only add a second shared key (`CRM_GATE_KEY`). Don't reopen this decision.
-- **Tests:** `npm test --prefix server` runs `node --test test/*.test.js`. All 29 tests passed as of commit `91ef236`. GitHub Actions workflow: `.github/workflows/server-tests.yml`.
+- **Tests:** `npm test --prefix server` runs `node --test test/*.test.js`. All 30 tests passed as of commit `90d19d0`. GitHub Actions workflow: `.github/workflows/server-tests.yml`.
 - **More notes** live in `PROJECT_STATE.md` in that repo.
 
 ### Repo A: the older, secondary CRM (`KrisWemet/rustic-retreat-crm`, with hyphen)
@@ -128,6 +128,23 @@ Both repos have their own PR numbers, and both have used the branch name `claude
 - **Server:** a new `POST /api/invoices/schedule-preview` returns the standard schedule without saving. `POST /api/invoices/schedule/:coupleId` now takes an optional `items` list.
 - **Display:** invoice amounts now always show two decimals.
 - **Deploy:** succeeded on Railway at 15:38 UTC on 26 Sep 2026.
+
+### `KrisWemet/rusticretreat-crm#6`: dropdowns and quick picks across admin forms (merged as `90d19d0`, deployed)
+
+- **Clients (add and edit):**
+  - **Venue Package** is a list of active packages.
+  - New **How they heard about us** list, with the same choices as the public enquiry form. It's saved as `referral_source`, so couples added by hand count in the Analytics referral chart. The client page shows it as "Heard about us".
+- **Tasks:**
+  - **Title** suggests 12 common follow-ups and still accepts anything typed.
+  - **Due in** shortcuts, from today to 1 month.
+  - **Assigned To** is a list of staff, from a new `GET /api/auth/staff` that returns only ids and names.
+- **Bookings:**
+  - **Ceremony / Reception** suggest the venue's spaces (Forest Clearing, Poplar Grove, Meadow, Clear-Top Gazebo) plus earlier entries, and still accept anything typed.
+  - **Add-ons:** "+ Add from the add-on list" adds an item with its price to the add-ons text.
+- **Messages:** a **Quick reply** list that fills an editable message with the couple's first names (check in, after a tour, proposal ready, contract ready, payment reminder, payment received, day-of timeline, final guest count).
+- **Where to edit the lists:** they all live in `client/src/utils/options.js`. A saved value that isn't in a list still shows, so older records are never blanked.
+- **Checked end to end:** a browser test on a local copy with a fresh database covered enquiry, couple, booking, split payment plan, task, message and Analytics, plus every admin and portal page. It found no errors.
+- **Deploy:** succeeded on Railway at 15:54 UTC on 26 Sep 2026. The daily backup ran right after.
 
 ---
 
