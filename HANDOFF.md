@@ -40,7 +40,7 @@ Both repos have their own PR numbers, and both have used the branch name `claude
 - **Hosting:** Railway project **"refreshing-analysis"**. Railway deploys from the branch **`claude/wedding-crm-esign-integration-coau0z`**. The repo's default branch is `claude/wedding-venue-crm-23ycf5`.
 - **Database:** a SQLite file on a Railway volume mounted at `/data`, with `DB_PATH` pointing to it. **It holds real couples.**
 - **Access:** `CRM_PUBLIC=1` means there is no extra access gate in front of the app. The owner chose to keep it that way, because the admin CRM already requires the admin login (email set by `ADMIN_EMAIL_LOGIN`, plus a password). The gate would only add a second shared key (`CRM_GATE_KEY`). Don't reopen this decision.
-- **Tests:** `npm test --prefix server` runs `node --test test/*.test.js`. All 30 tests passed as of commit `90d19d0`. GitHub Actions workflow: `.github/workflows/server-tests.yml`.
+- **Tests:** `npm test --prefix server` runs `node --test test/*.test.js`. All 36 tests passed as of commit `a702abf`. GitHub Actions workflow: `.github/workflows/server-tests.yml`.
 - **More notes** live in `PROJECT_STATE.md` in that repo.
 
 ### Repo A: the older, secondary CRM (`KrisWemet/rustic-retreat-crm`, with hyphen)
@@ -48,6 +48,15 @@ Both repos have their own PR numbers, and both have used the branch name `claude
 - **Stack:** React, Vite, TypeScript, Tailwind 4 and Supabase (project `aztaffrywreshzyzraiz`).
 - **Hosting:** Vercel project `rustic_retreat_crm` at rusticretreatcrm.vercel.app.
 - **Status:** no longer the main system. The plan is to retire it later.
+
+### The public website (`KrisWemet/rustic-retreat-weddings`)
+
+- **Web address:** https://www.rusticretreatalberta.ca. The bare `rusticretreatalberta.ca` redirects to www.
+- **Hosting:** Vercel project `rustic-retreat-weddings`, deployed from `main`. Netlify also builds previews of PRs.
+- **Stack:** React and Vite, with content in Sanity. Checks are `npm run lint` and a build; there is no test suite.
+- **Forms:** all post to Formspree, which emails the venue.
+  - **Contact page** (`src/pages/Contact.tsx`): form `mgooaleg`. It also copies each enquiry into the CRM (see `KrisWemet/rusticretreat-crm#7` and `#8` below).
+  - **2026 and 2027 booking-request pages:** Formspree only; not yet copied into the CRM.
 
 ---
 
@@ -146,6 +155,25 @@ Both repos have their own PR numbers, and both have used the branch name `claude
 - **Checked end to end:** a browser test on a local copy with a fresh database covered enquiry, couple, booking, split payment plan, task, message and Analytics, plus every admin and portal page. It found no errors.
 - **Deploy:** succeeded on Railway at 15:54 UTC on 26 Sep 2026. The daily backup ran right after.
 
+### Website contact form → CRM: `KrisWemet/rusticretreat-crm#7`, `#8` and `KrisWemet/rustic-retreat-weddings#7` (deployed)
+
+- **How it works:**
+  - The website's contact page ("Book a Venue Tour") still posts to Formspree, which emails the venue.
+  - It also sends the same fields to the CRM at `POST https://crm.rusticretreatalberta.ca/api/inquire/website`.
+  - That copy is fire-and-forget (URL-encoded, `no-cors`, `keepalive`), so a CRM problem can never break the form for couples.
+  - The website's CSP in `vercel.json` allows the CRM host. The URL can be overridden with `VITE_CRM_ENQUIRY_URL`.
+- **What the CRM does with each enquiry** (`server/services/websiteEnquiry.js`):
+  - **New email:** creates an **Inquiry** client from both partners' names, email and phone.
+  - **Wedding date:** copied only when it's an exact date. All the couple's answers go into the notes either way.
+  - **Known email:** adds to that client's notes instead of making a duplicate.
+  - **Tour request:** always adds a **Requested** tour on Site Tours, with the suggested dates or "no dates suggested yet". If the couple already has an open (requested or scheduled) tour, the new dates are added to it instead.
+  - **Follow-up task:** always adds a high-priority task, "Follow up on website enquiry and book their tour", due the next day. The site promises a reply within 24 hours.
+  - **No email:** sends none, because Formspree does that.
+- **Spam:** a hidden `_gotcha` honeypot is dropped by both Formspree and the CRM. The CRM endpoint allows 10 an hour per IP address.
+- **Verified live:** a test enquiry reached the live CRM at 16:42 UTC on 26 Sep 2026 and returned 201. The first test was sent from a page loaded before the website update, so nothing arrived. Hard-refresh before testing.
+- **Deploys:** the CRM went out at 16:34 and 16:47 UTC, and the website on Vercel at 16:36 UTC, on 26 Sep 2026.
+- **Clean-up:** delete the owner's test enquiry couples from Clients. That also removes their tour requests; their follow-up tasks under Tasks need deleting too.
+
 ---
 
 ## Open items
@@ -172,6 +200,7 @@ Both repos have their own PR numbers, and both have used the branch name `claude
    - **dependency upgrades that need a major version:**
      - nodemailer 8 → 10: only the backup email path behind Resend, and the affected options aren't used
      - react-router 6 → 7: moderate
+   - **booking-request pages:** copy the website's 2026 and 2027 booking-request forms into the CRM the same way as the contact form
    - **garbled URLs:** a URL with invalid encoding (bot scans for `.env` files) gets a 500 from the static file handler instead of a 400. It's harmless because nothing is exposed.
 
 ---
