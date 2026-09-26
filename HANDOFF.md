@@ -24,6 +24,7 @@ Last updated: 26 September 2026. Written so a new chat can pick up where the las
   2. 25% due **180 days** (about 6 months) before check-in.
   3. The last 50% due **90 days** (about 3 months) before check-in.
   4. If a milestone has already passed when the couple books, it is due with the deposit.
+  - **Other arrangements:** the venue sometimes agrees a different plan with a couple. For example, one couple paid the deposit in two payments two weeks apart. The Payments page supports this (see `KrisWemet/rusticretreat-crm#5` below).
 - **2028 agreement:** same wording as 2027. Only the prices are new.
 
 ---
@@ -39,7 +40,7 @@ Both repos have their own PR numbers, and both have used the branch name `claude
 - **Hosting:** Railway project **"refreshing-analysis"**. Railway deploys from the branch **`claude/wedding-crm-esign-integration-coau0z`**. The repo's default branch is `claude/wedding-venue-crm-23ycf5`.
 - **Database:** a SQLite file on a Railway volume mounted at `/data`, with `DB_PATH` pointing to it. **It holds real couples.**
 - **Access:** `CRM_PUBLIC=1` means there is no extra access gate in front of the app. The owner chose to keep it that way, because the admin CRM already requires the admin login (email set by `ADMIN_EMAIL_LOGIN`, plus a password). The gate would only add a second shared key (`CRM_GATE_KEY`). Don't reopen this decision.
-- **Tests:** `npm test --prefix server` runs `node --test test/*.test.js`. All 27 tests passed as of commit `840a9a3`. GitHub Actions workflow: `.github/workflows/server-tests.yml`.
+- **Tests:** `npm test --prefix server` runs `node --test test/*.test.js`. All 29 tests passed as of commit `91ef236`. GitHub Actions workflow: `.github/workflows/server-tests.yml`.
 - **More notes** live in `PROJECT_STATE.md` in that repo.
 
 ### Repo A: the older, secondary CRM (`KrisWemet/rustic-retreat-crm`, with hyphen)
@@ -103,6 +104,31 @@ Both repos have their own PR numbers, and both have used the branch name `claude
 - **Unchanged:** the database columns and contract times are not touched.
 - **Deploy:** succeeded on Railway at 14:58 UTC on 26 Sep 2026. The startup logs showed no new errors.
 
+### `KrisWemet/rusticretreat-crm#4`: booking total with GST, security patch (merged as `368921b`, deployed)
+
+- **Package:** the New/Edit Booking form's Package is now a dropdown of active packages. A retired or hand-typed name on an older booking stays selectable.
+- **Total:** choosing a package or check-in date fills the total with that year's price plus 5% GST (3-Day 2027 → $6,825; 3-Day 2028 → $7,875; 5-Day 2028 → $8,925).
+  - A total staff typed themselves is never overwritten.
+  - If a total differs from the package price with GST, an amber note says so and offers the right figure in one click.
+  - Saving is never blocked, so totals that include add-ons still work.
+- **Security:** a lockfile-only update to express 4.22.3 and qs 6.16.0, which fixes a high-severity denial-of-service in `qs`.
+- **Deploy:** succeeded on Railway at 15:20 UTC on 26 Sep 2026.
+
+### `KrisWemet/rusticretreat-crm#5`: payment percentages and custom payment plans (merged as `91ef236`, deployed)
+
+- **Add Invoice → Payment dropdown:** Deposit (25%), Second payment (25%), Final balance (50%), Half of the deposit (12.5%), or Custom amount.
+  - Once a couple is picked, the choice fills the amount from their booking total, and the description and due date from the agreement's schedule.
+  - Typing an amount switches the dropdown back to Custom.
+- **Auto Schedule → editable plan:** the standard three payments appear as editable rows before saving.
+  - **Split (✂):** turns a payment into two halves, the second due 14 days later (you can change the date). This covers a deposit paid in two parts.
+  - **Other edits:** any description, amount or date can be changed, and rows can be removed or added.
+  - **Total check:** **Create Schedule** only works once the rows add up to what's still owed. The server checks this too (`normaliseCustomSchedule` in `server/services/paymentSchedule.js`).
+  - **Already paid:** paid invoices are always kept, so the new plan covers only the remainder. The form says how much has been paid.
+  - **Safe replacement:** unpaid invoices are replaced in one transaction, so a refused plan changes nothing.
+- **Server:** a new `POST /api/invoices/schedule-preview` returns the standard schedule without saving. `POST /api/invoices/schedule/:coupleId` now takes an optional `items` list.
+- **Display:** invoice amounts now always show two decimals.
+- **Deploy:** succeeded on Railway at 15:38 UTC on 26 Sep 2026.
+
 ---
 
 ## Open items
@@ -110,17 +136,14 @@ Both repos have their own PR numbers, and both have used the branch name `claude
 1. **Shannon & Chris booking shows $6,439.**
    - **Cause:** that number was typed by hand into the New Booking form on 25 Sep 2026 (Railway log `POST /api/bookings`). No code changed it.
    - **Correct total:** **$6,825**, which is $6,500 plus $325 GST.
-   - **Fix (for the owner):** Bookings → Edit → Total Package Price `6825` → Update Booking. Then on Payments, regenerate the schedule. Check-in is 23 Jul 2027, so the invoices should be:
+   - **Fix (for the owner, not done yet):** Bookings → Edit. The amber note offers **use $6,825.00**; click it, then Update Booking. Then on Payments, choose Auto Schedule for the couple and Create Schedule. Check-in is 23 Jul 2027, so the invoices should be:
 
      | Payment | Amount | Due |
      |---|---|---|
      | Deposit (25%) | $1,706.25 | now |
      | Second payment (25%) | $1,706.25 | 24 Jan 2027 (180 days before) |
      | Final payment (50%) | $3,412.50 | 24 Apr 2027 (90 days before) |
-   - **Offered improvement, not built yet:**
-     - make the booking form's Package a dropdown
-     - fill the price in automatically from the season price plus GST
-     - warn when a typed total differs
+   - **Prevention:** now built and live (`KrisWemet/rusticretreat-crm#4`).
 2. **`KrisWemet/rusticretreat-crm#2` deploy: verified.** It deployed successfully at 00:58 UTC on 26 Sep 2026.
    - **Log results:** "Set 2028 prices on 2 package(s)" and "Removed 4 demo couple(s) and 6 demo task(s)". No migration errors.
    - **No "Deactivated 2-Day" line:** no *active* 2-Day package was found, so it was probably already switched off. Worth a glance on the Packages page.
@@ -129,6 +152,10 @@ Both repos have their own PR numbers, and both have used the branch name `claude
    - turn on Supabase leaked-password protection
    - add camping tracking
    - confirm the cancellation wording in the agreement
+   - **dependency upgrades that need a major version:**
+     - nodemailer 8 → 10: only the backup email path behind Resend, and the affected options aren't used
+     - react-router 6 → 7: moderate
+   - **garbled URLs:** a URL with invalid encoding (bot scans for `.env` files) gets a 500 from the static file handler instead of a 400. It's harmless because nothing is exposed.
 
 ---
 
