@@ -12,12 +12,15 @@ Last updated: 26 September 2026. Written so a new chat can pick up where the las
 | Package | 2027 price | 2028 price | Allowed dates |
 |---|---|---|---|
 | 3-Day Weekend | $6,500 | $7,500 | Fri–Sun |
-| 5-Day Experience | (see Packages page) | $8,500 | Wed–Sun, Thu–Mon or Fri–Tue |
+| 5-Day Experience | $7,500 | $8,500 | Wed–Sun, Thu–Mon or Fri–Tue |
 | 2-Day Weekday Escape | **Retired**: no longer sold | not offered | none |
 
+- The 5-Day 2027 price comes from the 2027 agreement's price table and the seed data in repo B. If the live Packages page ever shows something different, check it there.
 - **Guests:** the reception holds at most 100.
 - **Payment schedule** (this matches Section 4 of the signed agreement):
-  1. 25% deposit when the agreement is signed. When a proposal is accepted, the deposit is due 7 days later.
+  1. 25% deposit. How the deposit falls due depends on how the couple books:
+     - **Agreement signed directly:** the deposit is due at signing.
+     - **Proposal accepted online:** the deposit is due 7 days after acceptance.
   2. 25% due **180 days** (about 6 months) before check-in.
   3. The last 50% due **90 days** (about 3 months) before check-in.
   4. If a milestone has already passed when the couple books, it is due with the deposit.
@@ -27,14 +30,16 @@ Last updated: 26 September 2026. Written so a new chat can pick up where the las
 
 ## There are two repos. Only one is the live CRM.
 
+Both repos have their own PR numbers, and both have used the branch name `claude/great-gates-rohjoy`. So always write a PR with its repo, for example `KrisWemet/rusticretreat-crm#2`, never just "PR #2".
+
 ### Repo B: the CRM in use (`KrisWemet/rusticretreat-crm`, no hyphen)
 
 - **Web addresses:** https://crm.rusticretreatalberta.ca for the admin CRM, and https://sign.rusticretreatalberta.ca for e-signing.
 - **Stack:** Express, better-sqlite3 12.11.1 (pinned) and a React client.
 - **Hosting:** Railway project **"refreshing-analysis"**. Railway deploys from the branch **`claude/wedding-crm-esign-integration-coau0z`**. The repo's default branch is `claude/wedding-venue-crm-23ycf5`.
 - **Database:** a SQLite file on a Railway volume mounted at `/data`, with `DB_PATH` pointing to it. **It holds real couples.**
-- **Access:** `CRM_PUBLIC=1` means there is no extra access gate in front of the app. The owner chose to keep it that way, because the site is already password protected.
-- **Tests:** `npm test --prefix server` runs `node --test test/*.test.js`. There are 27 tests, all passing. GitHub Actions workflow: `.github/workflows/server-tests.yml`.
+- **Access:** `CRM_PUBLIC=1` means there is no extra access gate in front of the app. The owner chose to keep it that way, because the admin CRM already requires the admin login (email set by `ADMIN_EMAIL_LOGIN`, plus a password). The gate would only add a second shared key (`CRM_GATE_KEY`). Don't reopen this decision.
+- **Tests:** `npm test --prefix server` runs `node --test test/*.test.js`. All 27 tests passed as of commit `840a9a3`. GitHub Actions workflow: `.github/workflows/server-tests.yml`.
 - **More notes** live in `PROJECT_STATE.md` in that repo.
 
 ### Repo A: the older, secondary CRM (`KrisWemet/rustic-retreat-crm`, with hyphen)
@@ -47,7 +52,7 @@ Last updated: 26 September 2026. Written so a new chat can pick up where the las
 
 ## Work finished
 
-### Repo A (older CRM)
+### Repo A (older CRM): `KrisWemet/rustic-retreat-crm#2` and `#3`
 
 - **CI:** added a frontend CI workflow and gated production migrations.
 - **Supabase:** the project was backed up and reset. The old edge functions and storage buckets were deleted, and both admin accounts were set up.
@@ -55,7 +60,7 @@ Last updated: 26 September 2026. Written so a new chat can pick up where the las
 - **Login:** fixed the unstyled login page (a Tailwind v4 CSS layer-order problem), made it look more professional, and added a working password-reset flow. The owner signed in successfully.
 - **Client portal:** **on hold**. Admin must be fully working before any client gets access.
 
-### Repo B PR #1: booking rules (merged as `21400b8`, deployed)
+### `KrisWemet/rusticretreat-crm#1`: booking rules (merged as `21400b8`, deployed)
 
 - **Booking rules:** `server/services/bookingRules.js` adds `assertBookable(...)`.
   - **Double bookings:** blocked. A booking takes up its own dates plus a reset day.
@@ -70,7 +75,7 @@ Last updated: 26 September 2026. Written so a new chat can pick up where the las
 - **Seeded accounts:** the startup step that resets demo couple passwords now touches only the seeded demo emails.
 - **Tested:** the owner confirmed that double booking is now impossible.
 
-### Repo B PR #2: payments, 2028 prices, demo clean-up (merged as `3866e60`)
+### `KrisWemet/rusticretreat-crm#2`: payments, 2028 prices, demo clean-up (merged as `3866e60`)
 
 - **One payment schedule everywhere:** `server/services/paymentSchedule.js` (`buildPaymentSchedule`) implements 25% / 25% at 180 days / 50% at 90 days. It is used by:
   - proposal acceptance (creates 3 invoices)
@@ -98,15 +103,24 @@ Last updated: 26 September 2026. Written so a new chat can pick up where the las
 1. **Shannon & Chris booking shows $6,439.**
    - **Cause:** that number was typed by hand into the New Booking form on 25 Sep 2026 (Railway log `POST /api/bookings`). No code changed it.
    - **Correct total:** **$6,825**, which is $6,500 plus $325 GST.
-   - **Fix (for the owner):** Bookings → Edit → Total Package Price `6825` → Update Booking. Then on Payments, regenerate the schedule. That gives $1,706.25 now, $1,706.25 at 180 days before 23 Jul 2027 and $3,412.50 at 90 days before.
+   - **Fix (for the owner):** Bookings → Edit → Total Package Price `6825` → Update Booking. Then on Payments, regenerate the schedule. Check-in is 23 Jul 2027, so the invoices should be:
+
+     | Payment | Amount | Due |
+     |---|---|---|
+     | Deposit (25%) | $1,706.25 | now |
+     | Second payment (25%) | $1,706.25 | 24 Jan 2027 (180 days before) |
+     | Final payment (50%) | $3,412.50 | 24 Apr 2027 (90 days before) |
    - **Offered improvement, not built yet:**
      - make the booking form's Package a dropdown
      - fill the price in automatically from the season price plus GST
      - warn when a typed total differs
-2. **PR #2 deploy: verified.** It deployed successfully at 00:58 UTC on 26 Sep 2026.
+2. **`KrisWemet/rusticretreat-crm#2` deploy: verified.** It deployed successfully at 00:58 UTC on 26 Sep 2026.
    - **Log results:** "Set 2028 prices on 2 package(s)" and "Removed 4 demo couple(s) and 6 demo task(s)". No migration errors.
    - **No "Deactivated 2-Day" line:** no *active* 2-Day package was found, so it was probably already switched off. Worth a glance on the Packages page.
-3. **Later, optional:**
+3. **Booking form: start and end times removed.** On branch `claude/great-gates-rohjoy` in repo B (commit `840a9a3`), which isn't merged yet. The New/Edit Booking form no longer has the Start Time and End Time fields.
+   - **Existing bookings:** times already saved are kept and still show in the bookings list.
+   - **Unchanged:** the database columns and contract times are not touched.
+4. **Later, optional:**
    - retire repo A (the Vercel project and Supabase project `aztaffrywreshzyzraiz`, including its `legacy_backup` schema)
    - turn on Supabase leaked-password protection
    - add camping tracking
