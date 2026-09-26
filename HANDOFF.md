@@ -103,7 +103,9 @@ Last updated: 26 September 2026. Written so a new chat can pick up where the las
      - make the booking form's Package a dropdown
      - fill the price in automatically from the season price plus GST
      - warn when a typed total differs
-2. **Check the PR #2 deploy.** Railway logs should show the migration lines ("Set 2028 prices", "Deactivated 2-Day", "Removed N demo couple(s)") with no errors.
+2. **PR #2 deploy: verified.** It deployed successfully at 00:58 UTC on 26 Sep 2026.
+   - **Log results:** "Set 2028 prices on 2 package(s)" and "Removed 4 demo couple(s) and 6 demo task(s)". No migration errors.
+   - **No "Deactivated 2-Day" line:** no *active* 2-Day package was found, so it was probably already switched off. Worth a glance on the Packages page.
 3. **Later, optional:**
    - retire repo A (the Vercel project and Supabase project `aztaffrywreshzyzraiz`, including its `legacy_backup` schema)
    - turn on Supabase leaked-password protection
