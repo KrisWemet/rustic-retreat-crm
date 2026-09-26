@@ -212,6 +212,12 @@ Both repos have their own PR numbers, and both have used the branch name `claude
 - **Fixed:** editing a form's questions used to delete every answer to it. Questions are now updated in place by id.
 - **Email sending:** now supports several recipients and a reply-to (`server/services/email.js`).
 
+### `KrisWemet/rusticretreat-crm#10`: wide tables scroll sideways (merged as `db74f64`, deployed)
+
+- **Problem:** on a narrower window, table rows were cut off at the right edge, so buttons like **Delete** on Site Tours couldn't be reached without resizing the window.
+- **Fix:** the table cards now use `overflow-x-auto` instead of `overflow-hidden`, so a wide table scrolls sideways inside its card.
+- **Pages:** Site Tours, Tasks, Payments, Clients, Bookings, Backups, Proposals, Vendors, and the portal Guest List and Budget.
+
 ---
 
 ## Open items
@@ -252,4 +258,7 @@ Both repos have their own PR numbers, and both have used the branch name `claude
 - **Client portal** stays on hold until the owner says otherwise.
 - **The CRM access gate** stays off (`CRM_PUBLIC=1`).
 - **Totals** entered in the CRM should include 5% GST.
-- **Git:** work on a `claude/...` branch, open a PR, and the owner merges it. Railway deploys from `claude/wedding-crm-esign-integration-coau0z`.
+- **Git:** work on a `claude/...` branch and open a PR. Railway deploys from `claude/wedding-crm-esign-integration-coau0z`.
+  - **Merging:** on 26 Sep 2026 the owner gave Claude permission to merge its own PRs once the checks pass. Nothing is merged while a check is red or still running.
+  - **After merging:** check the Railway deploy (or, for the website, Vercel) and tell the owner when it's live.
+  - **If the merge is refused** by the session's safety check, tell the owner and ask them to merge it.
