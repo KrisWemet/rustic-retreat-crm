@@ -96,6 +96,13 @@ Both repos have their own PR numbers, and both have used the branch name `claude
   - `remove-demo-couples-2026-09`: production only. Deletes the 4 seeded sample couples and their tasks; real couples are kept.
 - **Guests field:** the Bookings form now allows up to 100 guests (it was 80).
 
+### `KrisWemet/rusticretreat-crm#3`: booking form start and end times removed (merged as `7d14525`, deployed)
+
+- **Form:** the New/Edit Booking form no longer has the Start Time and End Time fields. Check-In Date and Check-Out Date are still there.
+- **Existing bookings:** times already saved are kept and still show in the bookings list. Edits don't erase them.
+- **Unchanged:** the database columns and contract times are not touched.
+- **Deploy:** succeeded on Railway at 14:58 UTC on 26 Sep 2026. The startup logs showed no new errors.
+
 ---
 
 ## Open items
@@ -117,10 +124,7 @@ Both repos have their own PR numbers, and both have used the branch name `claude
 2. **`KrisWemet/rusticretreat-crm#2` deploy: verified.** It deployed successfully at 00:58 UTC on 26 Sep 2026.
    - **Log results:** "Set 2028 prices on 2 package(s)" and "Removed 4 demo couple(s) and 6 demo task(s)". No migration errors.
    - **No "Deactivated 2-Day" line:** no *active* 2-Day package was found, so it was probably already switched off. Worth a glance on the Packages page.
-3. **Booking form: start and end times removed.** On branch `claude/great-gates-rohjoy` in repo B (commit `840a9a3`), which isn't merged yet. The New/Edit Booking form no longer has the Start Time and End Time fields.
-   - **Existing bookings:** times already saved are kept and still show in the bookings list.
-   - **Unchanged:** the database columns and contract times are not touched.
-4. **Later, optional:**
+3. **Later, optional:**
    - retire repo A (the Vercel project and Supabase project `aztaffrywreshzyzraiz`, including its `legacy_backup` schema)
    - turn on Supabase leaked-password protection
    - add camping tracking
