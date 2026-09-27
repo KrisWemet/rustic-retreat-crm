@@ -1,4 +1,9 @@
-# Rustic Retreat CRM
+# Rustic Retreat CRM (retired)
+
+> **This repository is retired and no longer in use (27 Sep 2026).**
+> The live CRM is [`KrisWemet/rusticretreat-crm`](https://github.com/KrisWemet/rusticretreat-crm) (no hyphen), hosted on Railway. Its `HANDOFF.md` is the current source of truth.
+>
+> This repo's Vercel project (`rustic_retreat_crm`) and Supabase project (`aztaffrywreshzyzraiz`) were paused on 27 Sep 2026. Both can be resumed from their dashboards. The Supabase `legacy_backup` schema (6 old enquiries and settings) is kept inside the paused project.
 
 Current booking packages, prices, limits, and open pricing decisions are documented in [Current package rules](Documentation/Current_package_rules.md). The older PRD is historical and should not be used to quote new weddings.
 
