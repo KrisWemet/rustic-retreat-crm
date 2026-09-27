@@ -40,7 +40,9 @@ Both repos have their own PR numbers, and both have used the branch name `claude
 - **Hosting:** Railway project **"refreshing-analysis"**. Railway deploys from the branch **`claude/wedding-crm-esign-integration-coau0z`**. The repo's default branch is `claude/wedding-venue-crm-23ycf5`.
 - **Database:** a SQLite file on a Railway volume mounted at `/data`, with `DB_PATH` pointing to it. **It holds real couples.**
 - **Access:** `CRM_PUBLIC=1` means there is no extra access gate in front of the app. The owner chose to keep it that way, because the admin CRM already requires the admin login (email set by `ADMIN_EMAIL_LOGIN`, plus a password). The gate would only add a second shared key (`CRM_GATE_KEY`). Don't reopen this decision.
-- **Tests:** `npm test --prefix server` runs `node --test test/*.test.js`. All 53 tests passed as of commit `9da1ce5`. GitHub Actions workflow: `.github/workflows/server-tests.yml`.
+- **Tests:** `npm test --prefix server` runs `node --test test/*.test.js`. All 95 tests passed as of `KrisWemet/rusticretreat-crm#17`. GitHub Actions workflow: `.github/workflows/server-tests.yml`.
+- **Backups:** nightly at 2 am Alberta time, 30 kept on the volume, a snapshot before every data migration, and an off-site copy in the Railway storage bucket **`crm-backups`** (60 kept). Its credentials reach the service as `BACKUP_BUCKET*` variable references. The Backups page shows each day's jobs; a failed backup emails the venue.
+- **Daily jobs** (Alberta time, one runner, recorded in `job_runs`): backup 2 am; mark finished weddings completed and expire old proposals 3 am; morning summary email 7 am; payment reminders and follow-up alerts 8 am.
 - **More notes** live in `PROJECT_STATE.md` in that repo.
 
 ### Repo A: the older, secondary CRM (`KrisWemet/rustic-retreat-crm`, with hyphen)
@@ -218,6 +220,41 @@ Both repos have their own PR numbers, and both have used the branch name `claude
 - **Fix:** the table cards now use `overflow-x-auto` instead of `overflow-hidden`, so a wide table scrolls sideways inside its card.
 - **Pages:** Site Tours, Tasks, Payments, Clients, Bookings, Backups, Proposals, Vendors, and the portal Guest List and Budget.
 
+### The finishing plan, 26–27 Sep 2026: `KrisWemet/rusticretreat-crm#11`–`#17` (all merged and deployed)
+
+The owner asked for a plan to finish the CRM. Decisions made along the way:
+- **Couple emails: "remind me, not them".** No automatic nudge emails to enquiries; the CRM tells the venue who needs a follow-up. Payment reminders still go to couples, with e-Transfer instructions.
+- **Backups:** off-site copy in a Railway storage bucket.
+- **Extras:** a 7 am morning summary email. Card payments, SMS and camping tracking were left out for now.
+
+**`#11` Phase 1a: wrong emails and bugs**
+- The "Still dreaming?" auto-email to enquiries is gone. The dashboard lists **Needs a follow-up** (no scheduled tour, sent proposal, booking or "contacted" mark), with a **Mark contacted** button on each client page. The venue is emailed once when an enquiry is a week old.
+- Payment reminders and receipts give e-Transfer instructions (no portal link), go to both partners, skip cancelled couples and only count as sent once delivered.
+- The final contract signature books the date, sets the check-out date and adds the 25/25/50 schedule in one transaction; a date taken in the meantime becomes a task.
+- Resend renews an expired signing link; accepted proposals can't be declined; proposal emails report real delivery; public availability follows the booking rules.
+
+**`#12` Phase 1b: deletion safety**
+- Delete archives a couple (Archived tab, Restore). Permanent delete is admin-only and refused while they have a signed contract or paid invoice. Paid invoices and signed contracts are protected.
+- New activity log (who did what). Health check tests the database; errors no longer leak details; security headers; rate limits on proposal links.
+
+**`#13` Phase 2: backups and daily jobs** (see Repo B above)
+- Every email the CRM sends is logged (`email_log`) against the couple.
+
+**`#14` Phase 3: the admin's day**
+- Dashboard **Today and this week** panel, and the same list as a 7 am email to the venue.
+- Client page shows everything: balance, next payment, payments, contracts and who still has to sign, tasks (quick add), bookings and tours, emails sent, history.
+- **Find a couple** box on every page. Messages can **email** a couple (both partners; replies come to the venue inbox).
+
+**`#15`, `#16` Phase 4: editing gaps**
+- Payments: **Record payment** (date, method, reference, optional receipt), edit invoices, filters, send reminder now, printable statement.
+- Tasks edit and filters; Tours add, filter and optional confirmation email; Bookings search and upcoming/past, payment status from invoices; Proposals filter, search, duplicate; Forms "waiting on couples" with resend.
+- Extra-guest add-on now counts guests **over 80** (was "over 60"), matching the agreement.
+- Calendar shows every item per day, holds (proposal or contract out), date-range blocking, phone agenda; Contracts filters and link-expiry warnings; Pipeline "Move to" menu; Vendors edit.
+- **Settings:** change your password; the admin adds, resets and removes staff logins. `ADMIN_BOOTSTRAP_PASSWORD` now applies once per value, so it no longer undoes a password changed in the CRM.
+
+**`#17` Phase 5: consistency and phones**
+- 24 unstyled inputs fixed, one shared connection, visible load errors, Escape closes dialogs, forms stack on phones. Every admin page checked at phone and desktop width.
+
 ---
 
 ## Open items
@@ -233,10 +270,20 @@ Both repos have their own PR numbers, and both have used the branch name `claude
      | Second payment (25%) | $1,706.25 | 24 Jan 2027 (180 days before) |
      | Final payment (50%) | $3,412.50 | 24 Apr 2027 (90 days before) |
    - **Prevention:** now built and live (`KrisWemet/rusticretreat-crm#4`).
+   - **Easier now:** on Payments, use **Record payment** when their deposit arrives, so the date, method and reference are kept.
 2. **`KrisWemet/rusticretreat-crm#2` deploy: verified.** It deployed successfully at 00:58 UTC on 26 Sep 2026.
    - **Log results:** "Set 2028 prices on 2 package(s)" and "Removed 4 demo couple(s) and 6 demo task(s)". No migration errors.
    - **No "Deactivated 2-Day" line:** no *active* 2-Day package was found, so it was probably already switched off. Worth a glance on the Packages page.
-3. **Later, optional:**
+3. **Owner to-dos from the finishing plan:**
+   - **Check the first morning summary email** arrives at about 7 am Alberta time (it only sends when there is something to report).
+   - **Delete the test enquiries** (they will now show under "Needs a follow-up" on the dashboard): Archive them, then Delete permanently.
+   - **Send one live test enquiry** from the website to confirm the CRM emails the venue.
+   - **Look at the printed executed contract** once in production.
+   - **Supply the real contract text**, so both contract paths print the same terms.
+   - **Optional:** if `ADMIN_BOOTSTRAP_PASSWORD` is still set in Railway, it can now be removed (the log says "already applied; it is safe to unset it").
+4. **Later, optional:**
+   - card payments (Stripe), text messages (SMS) and camping tracking: not built this round, by the owner's choice
+   - a venue-wide preferred-vendor list (the Vendors page lists each couple's own vendors)
    - retire repo A (the Vercel project and Supabase project `aztaffrywreshzyzraiz`, including its `legacy_backup` schema)
    - turn on Supabase leaked-password protection
    - add camping tracking
@@ -246,14 +293,13 @@ Both repos have their own PR numbers, and both have used the branch name `claude
      - react-router 6 → 7: moderate
    - **retire Formspree** once the owner is happy with the CRM emails: remove the fallback in the website's `src/lib/crm.ts`, then close the Formspree account
    - **2026 booking page prices:** `/booking-2026` still lists the 3-Day at $4,500 and the 5-Day at $5,500. Check whether that page should still be live.
-   - **garbled URLs:** a URL with invalid encoding (bot scans for `.env` files) gets a 500 from the static file handler instead of a 400. It's harmless because nothing is exposed.
 
 ---
 
 ## Rules to keep following
 
 - **Never run `reset-data.js` on the live database.** It holds real couples.
-- **Back up before risky changes:** download a backup from Railway (service → Volume → Backups) first.
+- **Back up before risky changes:** the CRM snapshots itself before every data migration and copies nightly backups off-site; for anything else risky, press **Back up now** on the Backups page first.
 - **Secrets** go straight into Railway or GitHub settings, never into chat. Never put a Supabase service-role key in a `VITE_` variable.
 - **Client portal** stays on hold until the owner says otherwise.
 - **The CRM access gate** stays off (`CRM_PUBLIC=1`).
